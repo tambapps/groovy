@@ -160,7 +160,7 @@ public class WriterController {
     }
 
     public void setMethodVisitor(final MethodVisitor methodVisitor) {
-        this.methodVisitor = methodVisitor;
+        this.methodVisitor = new SmartMethodVisitor(methodVisitor);
     }
 
     public GeneratorContext getContext() {
