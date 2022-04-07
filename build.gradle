@@ -281,3 +281,10 @@ tasks.named("dependencyUpdates")?.configure {
         !(it.currentVersion.toLowerCase() ==~ UNSTABLE) && it.candidate.version.toLowerCase() ==~ UNSTABLE
     }
 }
+
+// Compile java code with JDK17, which is align with the JDK version used to distribute official releases
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
