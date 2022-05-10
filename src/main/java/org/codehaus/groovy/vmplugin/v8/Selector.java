@@ -43,6 +43,7 @@ import org.codehaus.groovy.runtime.GroovyCategorySupport;
 import org.codehaus.groovy.runtime.GroovyCategorySupport.CategoryMethod;
 import org.codehaus.groovy.runtime.NullObject;
 import org.codehaus.groovy.runtime.dgmimpl.NumberNumberMetaMethod;
+import org.codehaus.groovy.runtime.memoize.LRUCache;
 import org.codehaus.groovy.runtime.metaclass.ClosureMetaClass;
 import org.codehaus.groovy.runtime.metaclass.MetaClassRegistryImpl;
 import org.codehaus.groovy.runtime.metaclass.MethodMetaProperty;
@@ -65,6 +66,7 @@ import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Objects;
 
 import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.ARRAYLIST_CONSTRUCTOR;
 import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.BEAN_CONSTRUCTOR_PROPERTY_SETTER;
@@ -158,6 +160,7 @@ public abstract class Selector {
     }
 
     private static class CastSelector extends MethodSelector {
+        private static final MethodHandle BOOLEAN_CONSTANT_MH = MethodHandles.constant(boolean.class, Boolean.FALSE);
         private final Class<?> staticSourceType, staticTargetType;
 
         public CastSelector(MutableCallSite callSite, Object[] arguments) {
@@ -259,11 +262,12 @@ public abstract class Selector {
             // boolean->boolean, Boolean->boolean, boolean->Boolean are handled by the compiler
             // which leaves (T)Z and (T)Boolean, where T is the static type but runtime type of T might be Boolean
 
-            MethodHandle ifNull = IS_NULL.asType(MethodType.methodType(boolean.class, staticSourceType));
+            MethodHandle ifNull = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(IS_NULL, staticSourceType),
+                    k -> k.methodHandle.asType(MethodType.methodType(boolean.class, k.paramType)));
 
             MethodHandle thenZero;
             if (primitive) { // false
-                thenZero = MethodHandles.dropArguments(MethodHandles.constant(boolean.class, Boolean.FALSE), 0, staticSourceType);
+                thenZero = MethodHandles.dropArguments(BOOLEAN_CONSTANT_MH, 0, staticSourceType);
             } else { // (Boolean)null
                 thenZero = MethodHandles.identity(staticSourceType).asType(MethodType.methodType(Boolean.class, staticSourceType));
             }
@@ -378,6 +382,7 @@ public abstract class Selector {
     }
 
     private static class InitSelector extends MethodSelector {
+        private static final MethodType OBJECT_MT = MethodType.methodType(Object.class);
         private boolean beanConstructor;
 
         public InitSelector(MutableCallSite callSite, Class<?> sender, String methodName, CallType callType, boolean safeNavigation, boolean thisCall, boolean spreadCall, Object[] arguments) {
@@ -448,7 +453,7 @@ public abstract class Selector {
                 // to do this we first bind the values to #setBeanProperties
                 MethodHandle con = BEAN_CONSTRUCTOR_PROPERTY_SETTER.bindTo(mc);
                 // inner class case
-                MethodType foldTargetType = MethodType.methodType(Object.class);
+                MethodType foldTargetType = OBJECT_MT;
                 if (args.length == 3) {
                     con = MethodHandles.dropArguments(con, 1, targetType.parameterType(1));
                     foldTargetType = foldTargetType.insertParameterTypes(0, targetType.parameterType(1));
@@ -732,8 +737,9 @@ public abstract class Selector {
             if (currentType != null) pt = currentType.parameterArray();
             for (int i = 1; i < args.length; i++) {
                 if (args[i] instanceof Wrapper) {
-                    Class<?> type = pt[i];
-                    handle = MethodHandles.filterArguments(handle, i, UNWRAP_METHOD.asType(MethodType.methodType(type, Wrapper.class)));
+                    final MethodHandle unwrapMH = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(UNWRAP_METHOD, pt[i]),
+                                k -> k.methodHandle.asType(MethodType.methodType(k.paramType, Wrapper.class)));
+                    handle = MethodHandles.filterArguments(handle, i, unwrapMH);
                     if (LOG_ENABLED) LOG.info("added filter for Wrapper for argument at pos " + i);
                 }
             }
@@ -860,7 +866,9 @@ public abstract class Selector {
             if (handle == null || !catchException) return;
             Class<?> returnType = handle.type().returnType();
             if (returnType != Object.class) {
-                handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, UNWRAP_EXCEPTION.asType(MethodType.methodType(returnType, GroovyRuntimeException.class)));
+                final MethodHandle unwrapExceptionMH = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(UNWRAP_EXCEPTION, returnType),
+                            k -> k.methodHandle.asType(MethodType.methodType(k.paramType, GroovyRuntimeException.class)));
+                handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, unwrapExceptionMH);
             } else {
                 handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, UNWRAP_EXCEPTION);
             }
@@ -886,11 +894,13 @@ public abstract class Selector {
                 GroovyObject go = (GroovyObject) receiver;
                 MetaClass mc = go.getMetaClass();
                 // drop dummy receiver
-                MethodHandle test = SAME_MC.asType(MethodType.methodType(boolean.class, MetaClass.class, targetType.parameterType(0))).bindTo(mc);
+                MethodHandle test = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(SAME_MC, targetType.parameterType(0)),
+                        k -> k.methodHandle.asType(MethodType.methodType(boolean.class, MetaClass.class, k.paramType))).bindTo(mc);
                 handle = MethodHandles.guardWithTest(test, handle, fallback);
                 if (LOG_ENABLED) LOG.info("added meta class equality check");
             } else if (receiver instanceof Class) {
-                MethodHandle test = EQUALS.asType(MethodType.methodType(boolean.class, Object.class, targetType.parameterType(0))).bindTo(receiver);
+                MethodHandle test = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(EQUALS, targetType.parameterType(0)),
+                        k -> k.methodHandle.asType(MethodType.methodType(boolean.class, Object.class, k.paramType))).bindTo(receiver);
                 handle = MethodHandles.guardWithTest(test, handle, fallback);
                 if (LOG_ENABLED) LOG.info("added class equality check");
             }
@@ -924,13 +934,15 @@ public abstract class Selector {
                 MethodHandle test;
 
                 if (arg == null) {
-                    test = IS_NULL.asType(MethodType.methodType(boolean.class, paramType));
+                    test = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(IS_NULL, paramType),
+                            k -> k.methodHandle.asType(MethodType.methodType(boolean.class, k.paramType)));
                     if (LOG_ENABLED) LOG.info("added null argument check at pos " + i);
                 } else {
                     Class<?> argClass = arg.getClass();
                     if (paramType.isPrimitive()) continue;
                     //if (Modifier.isFinal(argClass.getModifiers()) && TypeHelper.argumentClassIsParameterClass(argClass,pt[i])) continue;
-                    test = SAME_CLASS.asType(MethodType.methodType(boolean.class, Class.class, paramType)).bindTo(argClass);
+                    test = AS_TYPE_METHODHANDLE_CACHE.getAndPut(new AsTypeMethodHandleCacheKey(SAME_CLASS, paramType),
+                            k -> k.methodHandle.asType(MethodType.methodType(boolean.class, Class.class, k.paramType))).bindTo(argClass);
                     if (LOG_ENABLED) LOG.info("added same class check at pos " + i);
                 }
                 Class<?>[] drops = new Class[i];
@@ -1070,5 +1082,29 @@ public abstract class Selector {
         Object[] ar = new Object[args.length - 1];
         System.arraycopy(args, 1, ar, 0, args.length - 1);
         return ar;
+    }
+
+    private static final LRUCache<AsTypeMethodHandleCacheKey, MethodHandle> AS_TYPE_METHODHANDLE_CACHE = new LRUCache<>(256);
+    private static class AsTypeMethodHandleCacheKey {
+        private final MethodHandle methodHandle;
+        private final Class<?> paramType;
+
+        private AsTypeMethodHandleCacheKey(MethodHandle methodHandle, Class<?> paramType) {
+            this.methodHandle = methodHandle;
+            this.paramType = paramType;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AsTypeMethodHandleCacheKey)) return false;
+            AsTypeMethodHandleCacheKey that = (AsTypeMethodHandleCacheKey) o;
+            return paramType == that.paramType && methodHandle.equals(that.methodHandle);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(methodHandle, paramType);
+        }
     }
 }
