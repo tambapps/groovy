@@ -733,8 +733,7 @@ public abstract class Selector {
             for (int i = 1; i < args.length; i++) {
                 if (args[i] instanceof Wrapper) {
                     Class<?> type = pt[i];
-                    MethodType mt = MethodType.methodType(type, Wrapper.class);
-                    handle = MethodHandles.filterArguments(handle, i, UNWRAP_METHOD.asType(mt));
+                    handle = MethodHandles.filterArguments(handle, i, UNWRAP_METHOD.asType(MethodType.methodType(type, Wrapper.class)));
                     if (LOG_ENABLED) LOG.info("added filter for Wrapper for argument at pos " + i);
                 }
             }
@@ -861,8 +860,7 @@ public abstract class Selector {
             if (handle == null || !catchException) return;
             Class<?> returnType = handle.type().returnType();
             if (returnType != Object.class) {
-                MethodType mtype = MethodType.methodType(returnType, GroovyRuntimeException.class);
-                handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, UNWRAP_EXCEPTION.asType(mtype));
+                handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, UNWRAP_EXCEPTION.asType(MethodType.methodType(returnType, GroovyRuntimeException.class)));
             } else {
                 handle = MethodHandles.catchException(handle, GroovyRuntimeException.class, UNWRAP_EXCEPTION);
             }
@@ -887,14 +885,12 @@ public abstract class Selector {
             if (receiver instanceof GroovyObject) {
                 GroovyObject go = (GroovyObject) receiver;
                 MetaClass mc = go.getMetaClass();
-                MethodHandle test = SAME_MC.bindTo(mc);
                 // drop dummy receiver
-                test = test.asType(MethodType.methodType(boolean.class, targetType.parameterType(0)));
+                MethodHandle test = SAME_MC.asType(MethodType.methodType(boolean.class, MetaClass.class, targetType.parameterType(0))).bindTo(mc);
                 handle = MethodHandles.guardWithTest(test, handle, fallback);
                 if (LOG_ENABLED) LOG.info("added meta class equality check");
             } else if (receiver instanceof Class) {
-                MethodHandle test = EQUALS.bindTo(receiver);
-                test = test.asType(MethodType.methodType(boolean.class, targetType.parameterType(0)));
+                MethodHandle test = EQUALS.asType(MethodType.methodType(boolean.class, Object.class, targetType.parameterType(0))).bindTo(receiver);
                 handle = MethodHandles.guardWithTest(test, handle, fallback);
                 if (LOG_ENABLED) LOG.info("added class equality check");
             }
@@ -934,9 +930,7 @@ public abstract class Selector {
                     Class<?> argClass = arg.getClass();
                     if (paramType.isPrimitive()) continue;
                     //if (Modifier.isFinal(argClass.getModifiers()) && TypeHelper.argumentClassIsParameterClass(argClass,pt[i])) continue;
-                    test = SAME_CLASS.
-                            bindTo(argClass).
-                            asType(MethodType.methodType(boolean.class, paramType));
+                    test = SAME_CLASS.asType(MethodType.methodType(boolean.class, Class.class, paramType)).bindTo(argClass);
                     if (LOG_ENABLED) LOG.info("added same class check at pos " + i);
                 }
                 Class<?>[] drops = new Class[i];
