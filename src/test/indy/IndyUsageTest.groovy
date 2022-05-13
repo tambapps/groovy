@@ -23,7 +23,6 @@ import org.junit.Test
 import static groovy.test.GroovyAssert.assertScript
 
 final class IndyUsageTest {
-
     @Test
     void testIndyIsUsedNested() {
         assertScript '''
@@ -35,6 +34,20 @@ final class IndyUsageTest {
             } catch (e) {
                 assert e.stackTrace.find { it.className == 'org.codehaus.groovy.vmplugin.v8.IndyInterface' }
             }
+        '''
+    }
+
+    @Test
+    void testMethodWithSingletonParamType() {
+        assertScript '''
+            class Singleton {
+                private Singleton() {}
+                public static final Singleton INSTANCE = new Singleton()
+            } 
+            def foo(Singleton p) {
+                return p
+            }
+            assert Singleton.INSTANCE === foo(Singleton.INSTANCE)
         '''
     }
 }

@@ -63,6 +63,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -933,7 +934,11 @@ public abstract class Selector {
                     if (LOG_ENABLED) LOG.info("added null argument check at pos " + i);
                 } else {
                     if (Modifier.isFinal(paramType.getModifiers())) {
-                        // primitive types are also `final`
+                        // e.g. `final` types, e.g. `String`, primitive types, `enum` types
+                        continue;
+                    }
+                    if (Arrays.stream(paramType.getDeclaredConstructors()).allMatch(c -> Modifier.isPrivate(c.getModifiers()))) {
+                        // e.g. singleton
                         continue;
                     }
                     test = SAME_CLASS.
