@@ -16,7 +16,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-package org.codehaus.groovy.vmplugin.v8;
+package org.codehaus.groovy.vmplugin.v7;
 
 import groovy.lang.Closure;
 import groovy.lang.GroovyObject;
@@ -45,12 +45,13 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 
-import static org.codehaus.groovy.vmplugin.v8.IndyInterface.LOOKUP;
+import static org.codehaus.groovy.vmplugin.v7.IndyInterface.LOOKUP;
 
 /**
  * This class contains guards, runtime filters and
  * MethodType signatures used by indy.
  */
+@Deprecated
 public class IndyGuardsFiltersAndSignatures {
 
     private static final MethodType
@@ -124,7 +125,7 @@ public class IndyGuardsFiltersAndSignatures {
     protected static final MethodHandle NULL_REF = MethodHandles.constant(Object.class, null);
 
     /**
-     * This method is called by the handle to realize the bean constructor
+     * This method is called by he handle to realize the bean constructor
      * with property map.
      */
     public static Object setBeanProperties(MetaClass mc, Object bean, Map properties) {

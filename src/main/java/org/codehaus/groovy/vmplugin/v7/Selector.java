@@ -16,7 +16,7 @@
  *  specific language governing permissions and limitations
  *  under the License.
  */
-package org.codehaus.groovy.vmplugin.v8;
+package org.codehaus.groovy.vmplugin.v7;
 
 import groovy.lang.AdaptingMetaClass;
 import groovy.lang.Closure;
@@ -51,7 +51,7 @@ import org.codehaus.groovy.runtime.metaclass.NewStaticMetaMethod;
 import org.codehaus.groovy.runtime.metaclass.ReflectionMetaMethod;
 import org.codehaus.groovy.runtime.wrappers.Wrapper;
 import org.codehaus.groovy.vmplugin.VMPluginFactory;
-import org.codehaus.groovy.vmplugin.v8.IndyInterface.CallType;
+import org.codehaus.groovy.vmplugin.v7.IndyInterface.CallType;
 
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
@@ -66,37 +66,38 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.ARRAYLIST_CONSTRUCTOR;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.BEAN_CONSTRUCTOR_PROPERTY_SETTER;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.BOOLEAN_IDENTITY;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.CLASS_FOR_NAME;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.DTT_CAST_TO_TYPE;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.EQUALS;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.GROOVY_CAST_EXCEPTION;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.GROOVY_OBJECT_GET_PROPERTY;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.GROOVY_OBJECT_INVOKER;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.HASHSET_CONSTRUCTOR;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.HAS_CATEGORY_IN_CURRENT_THREAD_GUARD;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.INTERCEPTABLE_INVOKER;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.IS_NULL;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.META_CLASS_INVOKE_STATIC_METHOD;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.META_METHOD_INVOKER;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.META_PROPERTY_GETTER;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.MOP_GET;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.MOP_INVOKE_CONSTRUCTOR;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.MOP_INVOKE_METHOD;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.NULL_REF;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.SAME_CLASS;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.SAME_MC;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.SAM_CONVERSION;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.UNWRAP_EXCEPTION;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.UNWRAP_METHOD;
-import static org.codehaus.groovy.vmplugin.v8.IndyGuardsFiltersAndSignatures.unwrap;
-import static org.codehaus.groovy.vmplugin.v8.IndyInterface.LOG;
-import static org.codehaus.groovy.vmplugin.v8.IndyInterface.LOG_ENABLED;
-import static org.codehaus.groovy.vmplugin.v8.IndyInterface.LOOKUP;
-import static org.codehaus.groovy.vmplugin.v8.IndyInterface.switchPoint;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.ARRAYLIST_CONSTRUCTOR;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.BEAN_CONSTRUCTOR_PROPERTY_SETTER;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.BOOLEAN_IDENTITY;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.CLASS_FOR_NAME;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.DTT_CAST_TO_TYPE;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.EQUALS;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.GROOVY_CAST_EXCEPTION;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.GROOVY_OBJECT_GET_PROPERTY;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.GROOVY_OBJECT_INVOKER;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.HASHSET_CONSTRUCTOR;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.HAS_CATEGORY_IN_CURRENT_THREAD_GUARD;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.INTERCEPTABLE_INVOKER;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.IS_NULL;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.META_CLASS_INVOKE_STATIC_METHOD;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.META_METHOD_INVOKER;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.META_PROPERTY_GETTER;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.MOP_GET;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.MOP_INVOKE_CONSTRUCTOR;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.MOP_INVOKE_METHOD;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.NULL_REF;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.SAME_CLASS;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.SAME_MC;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.SAM_CONVERSION;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.UNWRAP_EXCEPTION;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.UNWRAP_METHOD;
+import static org.codehaus.groovy.vmplugin.v7.IndyGuardsFiltersAndSignatures.unwrap;
+import static org.codehaus.groovy.vmplugin.v7.IndyInterface.LOG;
+import static org.codehaus.groovy.vmplugin.v7.IndyInterface.LOG_ENABLED;
+import static org.codehaus.groovy.vmplugin.v7.IndyInterface.LOOKUP;
+import static org.codehaus.groovy.vmplugin.v7.IndyInterface.switchPoint;
 
+@Deprecated
 public abstract class Selector {
     public Object[] args, originalArguments;
     public MetaMethod method;
@@ -641,7 +642,7 @@ public abstract class Selector {
             if (metaMethod instanceof CachedMethod) {
                 if (LOG_ENABLED) LOG.info("meta method is CachedMethod instance");
                 CachedMethod cm = (CachedMethod) metaMethod;
-                cm = (CachedMethod) VMPluginFactory.getPlugin().transformMetaMethod(mc, cm);
+                cm = (CachedMethod) VMPluginFactory.getPlugin().transformMetaMethod(getMetaClass(), cm);
                 isVargs = cm.isVargsMethod();
                 try {
                     Method m = cm.getCachedMethod();
@@ -930,19 +931,17 @@ public abstract class Selector {
             Class<?>[] pt = handle.type().parameterArray();
             for (int i = 0; i < args.length; i++) {
                 Object arg = args[i];
-                Class<?> paramType = pt[i];
                 MethodHandle test;
-
                 if (arg == null) {
-                    test = IS_NULL.asType(MethodType.methodType(boolean.class, paramType));
+                    test = IS_NULL.asType(MethodType.methodType(boolean.class, pt[i]));
                     if (LOG_ENABLED) LOG.info("added null argument check at pos " + i);
                 } else {
                     Class<?> argClass = arg.getClass();
-                    if (paramType.isPrimitive()) continue;
+                    if (pt[i].isPrimitive()) continue;
                     //if (Modifier.isFinal(argClass.getModifiers()) && TypeHelper.argumentClassIsParameterClass(argClass,pt[i])) continue;
                     test = SAME_CLASS.
                             bindTo(argClass).
-                            asType(MethodType.methodType(boolean.class, paramType));
+                            asType(MethodType.methodType(boolean.class, pt[i]));
                     if (LOG_ENABLED) LOG.info("added same class check at pos " + i);
                 }
                 Class<?>[] drops = new Class[i];

@@ -41,7 +41,12 @@ public class VMPluginFactory {
             new BigDecimal("16"), "org.codehaus.groovy.vmplugin.v16.Java16",
             new BigDecimal("10"), "org.codehaus.groovy.vmplugin.v10.Java10",
             new BigDecimal("9"), "org.codehaus.groovy.vmplugin.v9.Java9",
-            new BigDecimal("1.8"), "org.codehaus.groovy.vmplugin.v8.Java8"
+            new BigDecimal("1.8"), "org.codehaus.groovy.vmplugin.v8.Java8",
+            /* for the compatibility with android (see https://developer.android.com/reference/java/lang/System#getProperties())
+            on android, java.specification.version is set to 0.9
+            can't use Java8 plugin because Android don't have java.lang.ClassValue
+            */
+            new BigDecimal("0.9"), "org.codehaus.groovy.vmplugin.v7.Java7"
     );
 
     private static final VMPlugin PLUGIN;
